@@ -4,7 +4,6 @@
 # 此代码仅供学习与交流，请勿用于商业用途。
 # 爬取小区数据的爬虫派生类
 
-import re
 import threadpool
 from bs4 import BeautifulSoup
 from lib.item.xiaoqu import *
@@ -14,7 +13,6 @@ from lib.utility.date import *
 from lib.utility.path import *
 from lib.zone.area import *
 from lib.utility.log import *
-import lib.utility.version
 
 
 class XiaoQuBaseSpider(BaseSpider):
@@ -61,12 +59,20 @@ class XiaoQuBaseSpider(BaseSpider):
 
         # 获得总的页数
         try:
-            page_box = soup.find_all('div', class_='page-box')[0]
-            matches = re.search('.*"totalPage":(\d+),.*', str(page_box))
-            total_page = int(matches.group(1))
+            page_boxs = soup.find_all('div', class_='page-box house-lst-page-box')
+            # 如果当前地区没有房产信息，那么就会出现len为空的现象
+            if len(page_boxs) == 0:
+                print(f"{city}-{area}, page_boxs is empty, {page}")
+            else:
+                page_box = page_boxs[0]
+                tp = page_box["page-data"].split(',')[0].split(':')[1]
+                if tp not in (None, ""):
+                    total_page = int(tp)
+                    print(f"City: {city} area: {area} has {total_page} page contents")
+                else:
+                    print(f"Unmatch total page : city[{city}], area[{area}], {page_box}")
         except Exception as e:
-            print("\tWarning: only find one page for {0}".format(area))
-            print(e)
+            print("\tWarning: only find one page for {0}-{1}, Exception: {2}".format(city, area, str(e)))
 
         # 从第一页开始,一直遍历到最后一页
         for i in range(1, total_page + 1):
@@ -79,7 +85,7 @@ class XiaoQuBaseSpider(BaseSpider):
             soup = BeautifulSoup(html, "lxml")
 
             # 获得有小区信息的panel
-            house_elems = soup.find_all('li', class_="xiaoquListItem")
+            house_elems = soup.find_all('li', attrs={"class":["xiaoquListItem", "xiaoquListItemRight"]})
             for house_elem in house_elems:
                 price = house_elem.find('div', class_="totalPrice")
                 name = house_elem.find('div', class_='title')
@@ -96,15 +102,17 @@ class XiaoQuBaseSpider(BaseSpider):
         return xiaoqu_list
 
     def start(self):
+        # 获取城市列表
+        # 是否要改成自动获取所有的城市列表
         city = get_city()
         self.today_path = create_date_path("{0}/xiaoqu".format(SPIDER_NAME), city, self.date_string)
         t1 = time.time()  # 开始计时
-
         # 获得城市有多少区列表, district: 区县
         districts = get_districts(city)
         print('City: {0}'.format(city))
         print('Districts: {0}'.format(districts))
-
+        if len(districts) == 0:
+            print(f"{city} has no districts")
         # 获得每个区的板块, area: 板块
         areas = list()
         for district in districts:

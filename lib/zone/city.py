@@ -32,11 +32,13 @@ cities = {
     'wh': '武汉',
     'xm': '厦门',
     'yt': '烟台',
+    'huainan': '淮南',
 }
 
 
 lianjia_cities = cities
 beike_cities = cities
+beike_main_page = "http://www.ke.com/city/"
 
 
 def create_prompt_text():
